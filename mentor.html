@@ -1,108 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mentor Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 1rem; background: #fff7e6; }
-  h2 { color: #d17f00; }
-  button { margin-top: 1rem; padding: 8px 15px; border:none; background:#d17f00; color:#fff; border-radius:5px; cursor:pointer; }
-  button:hover { background:#a66100; }
-  ul { list-style:none; padding-left: 0; }
-  li { background:#fff; margin-bottom:8px; padding:10px; border-radius:5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-  form { margin-top: 20px; max-width: 400px; }
-  input, textarea, select, button { width: 100%; margin-bottom: 10px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 1rem; }
-</style>
-</head>
-<body>
+  <title>Mentor Dashboard</title>
+  <meta charset="UTF-8" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-<h2>Welcome, <span id="mentorName"></span></h2>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtk623Jq7dPCK9hKokiAkwdOeFseCtOe0",
+      authDomain: "margdarshan-portal.firebaseapp.com",
+      projectId: "margdarshan-portal",
+      storageBucket: "margdarshan-portal.firebasestorage.app",
+      messagingSenderId: "643677914032",
+      appId: "1:643677914032:web:dd242795a661ffff040c75"
+    };
 
-<h3>Your Notices</h3>
-<ul id="noticesList"></ul>
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
 
-<h3>Post New Notice</h3>
-<form id="noticeForm">
-  <input type="text" id="title" placeholder="Notice Title" required />
-  <textarea id="content" placeholder="Notice Content" rows="4" required></textarea>
-  <select id="toUserId">
-    <option value="">All Students</option>
-  </select>
-  <button type="submit">Post Notice</button>
-</form>
+    let currentUser;
 
-<button id="logoutBtn">Logout</button>
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return location.href = "index.html";
+      currentUser = user;
 
-<script>
-  const user = JSON.parse(localStorage.getItem('currentUser'));
-  if (!user || user.role !== 'mentor') {
-    alert('Unauthorized access!');
-    window.location.href = 'index.html';
-  } else {
-    document.getElementById('mentorName').textContent = user.name;
-  }
-
-  // Hardcoded students list (could be extended)
-  const students = [
-    { username: 'student1', name: 'Student One' },
-    { username: 'student2', name: 'Student Two' }
-  ];
-
-  // Populate students dropdown
-  const select = document.getElementById('toUserId');
-  students.forEach(s => {
-    const option = document.createElement('option');
-    option.value = s.username;
-    option.textContent = s.name;
-    select.appendChild(option);
-  });
-
-  // Load notices from localStorage
-  let notices = JSON.parse(localStorage.getItem('notices')) || [];
-
-  function renderNotices() {
-    const ul = document.getElementById('noticesList');
-    ul.innerHTML = '';
-    if (notices.length === 0) {
-      ul.innerHTML = '<li>No notices posted yet.</li>';
-    } else {
-      notices.forEach(n => {
-        const li = document.createElement('li');
-        let toUserText = n.to_user_id ? ` (To: ${n.to_user_id})` : ' (To: All Students)';
-        li.innerHTML = `<strong>${n.title}</strong>${toUserText}<br>${n.content}`;
-        ul.appendChild(li);
+      const uRef = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
+      const dropdown = document.getElementById("studentSelect");
+      uRef.forEach(doc => {
+        const opt = document.createElement("option");
+        opt.value = doc.id;
+        opt.textContent = doc.data().name;
+        dropdown.appendChild(opt);
       });
-    }
-  }
-  renderNotices();
 
-  document.getElementById('noticeForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
-    const toUserId = document.getElementById('toUserId').value;
-
-    notices.push({
-      title,
-      content,
-      to_user_id: toUserId || '',
-      posted_by: user.username,
-      created_at: new Date().toISOString()
+      document.getElementById("welcome").textContent = `Welcome, Mentor`;
     });
 
-    localStorage.setItem('notices', JSON.stringify(notices));
-    renderNotices();
+    window.sendNotice = async () => {
+      const title = document.getElementById("title").value;
+      const content = document.getElementById("content").value;
+      const toUser = document.getElementById("studentSelect").value;
 
-    e.target.reset();
-    alert('Notice posted!');
-  });
+      await addDoc(collection(db, "notices"), {
+        title,
+        content,
+        to_user_id: toUser,
+        posted_by: currentUser.uid,
+        created_at: serverTimestamp()
+      });
 
-  document.getElementById('logoutBtn').onclick = () => {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
-  };
-</script>
+      alert("Notice Sent!");
+    };
 
+    window.logout = () => signOut(auth).then(() => location.href = "index.html");
+  </script>
+</head>
+<body>
+  <h2 id="welcome">Loading...</h2>
+  <button onclick="logout()">Logout</button>
+
+  <h3>Post Notice to Students</h3>
+  <input id="title" placeholder="Notice Title"><br>
+  <textarea id="content" placeholder="Notice Content"></textarea><br>
+  <select id="studentSelect"><option value="">All Students</option></select><br>
+  <button onclick="sendNotice()">Send Notice</button>
 </body>
 </html>
