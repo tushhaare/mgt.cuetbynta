@@ -1,109 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Admin Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 1rem; background: #f0e6ff; }
-  h2 { color: #6a00d2; }
-  button { margin-top: 1rem; padding: 8px 15px; border:none; background:#6a00d2; color:#fff; border-radius:5px; cursor:pointer; }
-  button:hover { background:#4a00a3; }
-  ul { list-style:none; padding-left: 0; }
-  li { background:#fff; margin-bottom:8px; padding:10px; border-radius:5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-  form { margin-top: 20px; max-width: 400px; }
-  input, textarea, select, button { width: 100%; margin-bottom: 10px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 1rem; }
-</style>
+  <title>Admin Dashboard</title>
+  <meta charset="UTF-8" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtk623Jq7dPCK9hKokiAkwdOeFseCtOe0",
+      authDomain: "margdarshan-portal.firebaseapp.com",
+      projectId: "margdarshan-portal",
+      storageBucket: "margdarshan-portal.firebasestorage.app",
+      messagingSenderId: "643677914032",
+      appId: "1:643677914032:web:dd242795a661ffff040c75"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return location.href = "index.html";
+
+      const userSnap = await getDocs(collection(db, "users"));
+      document.getElementById("welcome").textContent = `Admin - ${user.email}`;
+    });
+
+    window.addUser = async () => {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const role = document.getElementById("role").value;
+
+      await addDoc(collection(db, "users"), {
+        name,
+        email,
+        role,
+        createdAt: serverTimestamp()
+      });
+
+      alert("User created (must create auth manually)");
+    };
+
+    window.logout = () => signOut(auth).then(() => location.href = "index.html");
+
+    window.sendGlobalNotice = async () => {
+      const title = document.getElementById("noticeTitle").value;
+      const content = document.getElementById("noticeContent").value;
+
+      await addDoc(collection(db, "notices"), {
+        title,
+        content,
+        posted_by: auth.currentUser.uid,
+        created_at: serverTimestamp()
+      });
+
+      alert("Notice sent to all!");
+    };
+  </script>
 </head>
 <body>
+  <h2 id="welcome">Loading...</h2>
+  <button onclick="logout()">Logout</button>
 
-<h2>Welcome, <span id="adminName"></span></h2>
-
-<h3>Users</h3>
-<ul id="usersList"></ul>
-
-<h3>Post New Notice</h3>
-<form id="noticeForm">
-  <input type="text" id="title" placeholder="Notice Title" required />
-  <textarea id="content" placeholder="Notice Content" rows="4" required></textarea>
-  <select id="toUserId">
-    <option value="">All Students</option>
+  <h3>Create User</h3>
+  <input id="name" placeholder="Name">
+  <input id="email" placeholder="Email">
+  <select id="role">
+    <option value="student">Student</option>
+    <option value="mentor">Mentor</option>
+    <option value="admin">Admin</option>
   </select>
-  <button type="submit">Post Notice</button>
-</form>
+  <button onclick="addUser()">Add</button>
 
-<button id="logoutBtn">Logout</button>
-
-<script>
-  const user = JSON.parse(localStorage.getItem('currentUser'));
-  if (!user || user.role !== 'admin') {
-    alert('Unauthorized access!');
-    window.location.href = 'index.html';
-  } else {
-    document.getElementById('adminName').textContent = user.name;
-  }
-
-  // Hardcoded users
-  let users = [
-    { username: 'student1', name: 'Student One', role: 'student' },
-    { username: 'mentor1', name: 'Mentor One', role: 'mentor' },
-    { username: 'admin1', name: 'Admin User', role: 'admin' },
-    { username: 'student2', name: 'Student Two', role: 'student' }
-  ];
-
-  const usersList = document.getElementById('usersList');
-  function renderUsers() {
-    usersList.innerHTML = '';
-    users.forEach(u => {
-      const li = document.createElement('li');
-      li.textContent = `${u.name} (${u.role})`;
-      usersList.appendChild(li);
-    });
-  }
-  renderUsers();
-
-  // Populate students dropdown for notice posting
-  const students = users.filter(u => u.role === 'student');
-  const select = document.getElementById('toUserId');
-  students.forEach(s => {
-    const option = document.createElement('option');
-    option.value = s.username;
-    option.textContent = s.name;
-    select.appendChild(option);
-  });
-
-  // Load notices from localStorage
-  let notices = JSON.parse(localStorage.getItem('notices')) || [];
-
-  function renderNotices() {
-    // For admin you can add a notices list if you want
-  }
-
-  document.getElementById('noticeForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
-    const toUserId = document.getElementById('toUserId').value;
-
-    notices.push({
-      title,
-      content,
-      to_user_id: toUserId || '',
-      posted_by: user.username,
-      created_at: new Date().toISOString()
-    });
-
-    localStorage.setItem('notices', JSON.stringify(notices));
-
-    e.target.reset();
-    alert('Notice posted!');
-  });
-
-  document.getElementById('logoutBtn').onclick = () => {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
-  };
-</script>
-
+  <h3>Post Global Notice</h3>
+  <input id="noticeTitle" placeholder="Title"><br>
+  <textarea id="noticeContent" placeholder="Notice Content"></textarea><br>
+  <button onclick="sendGlobalNotice()">Post</button>
 </body>
 </html>
