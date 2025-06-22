@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Student Dashboard</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 1rem; background: #e9f5ff; }
+  h2 { color: #007bff; }
+  button { margin-top: 1rem; padding: 8px 15px; border:none; background:#007bff; color:#fff; border-radius:5px; cursor:pointer; }
+  button:hover { background:#0056b3; }
+  ul { list-style:none; padding-left: 0; }
+  li { background:#fff; margin-bottom:8px; padding:10px; border-radius:5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+</style>
+</head>
+<body>
+
+<h2>Welcome, <span id="studentName"></span></h2>
+<h3>Your Notices</h3>
+<ul id="noticesList"></ul>
+
+<button id="logoutBtn">Logout</button>
+
+<script>
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  if (!user || user.role !== 'student') {
+    alert('Unauthorized access!');
+    window.location.href = 'index.html';
+  } else {
+    document.getElementById('studentName').textContent = user.name;
+  }
+
+  // Get notices from localStorage
+  let notices = JSON.parse(localStorage.getItem('notices')) || [];
+
+  // Show only notices for this user or all (to_user_id empty)
+  const filteredNotices = notices.filter(n => !n.to_user_id || n.to_user_id === user.username);
+
+  const ul = document.getElementById('noticesList');
+  if(filteredNotices.length === 0) {
+    ul.innerHTML = '<li>No notices yet.</li>';
+  } else {
+    filteredNotices.forEach(n => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${n.title}</strong><br>${n.content}`;
+      ul.appendChild(li);
+    });
+  }
+
+  document.getElementById('logoutBtn').onclick = () => {
+    localStorage.removeItem('currentUser');
+    window.location.href = 'index.html';
+  };
+</script>
+
+</body>
+</html>
