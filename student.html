@@ -1,57 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Student Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 1rem; background: #e9f5ff; }
-  h2 { color: #007bff; }
-  button { margin-top: 1rem; padding: 8px 15px; border:none; background:#007bff; color:#fff; border-radius:5px; cursor:pointer; }
-  button:hover { background:#0056b3; }
-  ul { list-style:none; padding-left: 0; }
-  li { background:#fff; margin-bottom:8px; padding:10px; border-radius:5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-</style>
+  <title>Student Dashboard</title>
+  <meta charset="UTF-8" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtk623Jq7dPCK9hKokiAkwdOeFseCtOe0",
+      authDomain: "margdarshan-portal.firebaseapp.com",
+      projectId: "margdarshan-portal",
+      storageBucket: "margdarshan-portal.firebasestorage.app",
+      messagingSenderId: "643677914032",
+      appId: "1:643677914032:web:dd242795a661ffff040c75"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+
+      if (userData.role !== "student") {
+        window.location.href = `${userData.role}.html`;
+        return;
+      }
+
+      document.getElementById("welcome").textContent = `Welcome, ${userData.name}`;
+
+      const q = query(collection(db, "notices"));
+      const querySnap = await getDocs(q);
+      querySnap.forEach(doc => {
+        const n = doc.data();
+        if (!n.to_user_id || n.to_user_id === user.uid) {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${n.title}</strong><br>${n.content}`;
+          document.getElementById("notices").appendChild(li);
+        }
+      });
+    });
+
+    window.logout = () => signOut(auth).then(() => location.href = "index.html");
+  </script>
 </head>
 <body>
-
-<h2>Welcome, <span id="studentName"></span></h2>
-<h3>Your Notices</h3>
-<ul id="noticesList"></ul>
-
-<button id="logoutBtn">Logout</button>
-
-<script>
-  const user = JSON.parse(localStorage.getItem('currentUser'));
-  if (!user || user.role !== 'student') {
-    alert('Unauthorized access!');
-    window.location.href = 'index.html';
-  } else {
-    document.getElementById('studentName').textContent = user.name;
-  }
-
-  // Get notices from localStorage
-  let notices = JSON.parse(localStorage.getItem('notices')) || [];
-
-  // Show only notices for this user or all (to_user_id empty)
-  const filteredNotices = notices.filter(n => !n.to_user_id || n.to_user_id === user.username);
-
-  const ul = document.getElementById('noticesList');
-  if(filteredNotices.length === 0) {
-    ul.innerHTML = '<li>No notices yet.</li>';
-  } else {
-    filteredNotices.forEach(n => {
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${n.title}</strong><br>${n.content}`;
-      ul.appendChild(li);
-    });
-  }
-
-  document.getElementById('logoutBtn').onclick = () => {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
-  };
-</script>
-
+  <h2 id="welcome">Loading...</h2>
+  <button onclick="logout()">Logout</button>
+  <h3>Your Notices</h3>
+  <ul id="notices"></ul>
 </body>
 </html>
